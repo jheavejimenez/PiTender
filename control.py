@@ -25,7 +25,7 @@ import datetime
 from common import *
 import threading
 
-if(prototype_mode == True):
+if prototype_mode:
 	# Prototype Modules for Test Host (i.e. PC based testing)
 	from platform_prototype import PumpControl # Library for reading the ADC device
 else:
@@ -41,9 +41,9 @@ stop_threads = False # Allows cancelling of drink pour threads
 def Pour(pump_number, waitTime, platform):
 	print(f' * Thread: {pump_number} Started for {waitTime} seconds.')
 	platform.ActivatePump(pump_number)
-	for x in range(waitTime): 
+	for _ in range(waitTime):
 		time.sleep(1)
-		global stop_threads 
+		global stop_threads
 		if(stop_threads): 
 			print(f' * Thread: {pump_number} cancelling.')
 			break
@@ -90,13 +90,13 @@ def PourDrink(drink_name):
 			#print(f'Calculated Pump Runtime for {drink_ingredient} = {calculated_pump_runtime}')
 			pump_t = threading.Thread(target=Pour, args=(pump_number,calculated_pump_runtime,platform))
 			pumpThreads.append(pump_t)
-		
+
 		# start the pump threads		
 		for thread in pumpThreads:
 			thread.start()
 
 		# Report Progress to WebUI
-		for x in range(total_runtime):
+		for _ in range(total_runtime):
 			current_count += 1
 			status = ReadStatus()
 			if (status['control']['stop'] == 1):
@@ -106,7 +106,7 @@ def PourDrink(drink_name):
 				break
 			percent_progress = int((current_count / total_runtime) * 100)
 			status['status']['progress'] = percent_progress
-			WriteStatus(status) 
+			WriteStatus(status)
 			time.sleep(1)
 
 		# wait for threads to finish
@@ -132,26 +132,25 @@ def CleanPump(pump_selected):
 	platform = PumpControl(settings)
 
 	if pump_selected == "all":
-		total_runtime = 0
 		progress = 0
 
-		for pump_number, pin_number in settings['assignments'].items():
-			if pin_number != 0:
-				total_runtime += 20
-
+		total_runtime = sum(
+			20
+			for pump_number, pin_number in settings['assignments'].items()
+			if pin_number != 0
+		)
 		for pump_number, pin_number in settings['assignments'].items():
 
 			if (pin_number != 0) and (status['control']['stop'] == 0):
 				platform.ActivatePump(pump_number)
-				for index in range(20):
+				for _ in range(20):
 					status = ReadStatus()
-					if (status['control']['stop'] == 0):
-						progress += 1
-						status['status']['progress'] = int(100 * (progress / total_runtime))
-						WriteStatus(status)
-						time.sleep(1) # Run for X seconds
-					else:
+					if status['control']['stop'] != 0:
 						break
+					progress += 1
+					status['status']['progress'] = int(100 * (progress / total_runtime))
+					WriteStatus(status)
+					time.sleep(1) # Run for X seconds
 				platform.DeActivatePump(pump_number)
 	else:
 		for pump_number, pin_number in settings['assignments'].items():
@@ -159,12 +158,11 @@ def CleanPump(pump_selected):
 				platform.ActivatePump(pump_number)
 				for index in range(21):
 					status = ReadStatus()
-					if (status['control']['stop'] == 0):
-						status['status']['progress'] = index*5
-						WriteStatus(status)
-						time.sleep(1) # Run for X seconds
-					else:
+					if status['control']['stop'] != 0:
 						break
+					status['status']['progress'] = index*5
+					WriteStatus(status)
+					time.sleep(1) # Run for X seconds
 				platform.DeActivatePump(pump_number)
 
 
@@ -179,20 +177,17 @@ def CleanPump(pump_selected):
 # *****************************************
 def main():
 	# Clear all status bits on start up
-	status = {}
+	status = {
+		'status': {"active": 0, "progress": 0},
+		'control': {
+			"start": 0,
+			"pause": 0,
+			"stop": 0,
+			"clean": "",
+			"drink_name": "",
+		},
+	}
 
-	status['status'] = {
-		"active": 0,
-		"progress": 0
-		}
-
-	status['control'] = {
-		"start": 0,
-		"pause": 0,
-		"stop": 0,
-		"clean": "",
-		"drink_name": ""
-		}
 	WriteStatus(status)
 
 	try:
@@ -213,8 +208,6 @@ def main():
 
 	except:
 		raise
-		print("Cleaning Up & Exiting...")
-		quit()
 
 if __name__ == "__main__":
     main()
