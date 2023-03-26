@@ -10,27 +10,22 @@ def ReadStatus():
 	# Read State Values from File
 	# *****************************************
 	try:
-		json_data_file = open("status.json", "r")
-		json_data_string = json_data_file.read()
-		status = json.loads(json_data_string)
-		json_data_file.close()
-	except(IOError, OSError):
+		with open("status.json", "r") as json_data_file:
+			json_data_string = json_data_file.read()
+			status = json.loads(json_data_string)
+	except (IOError, OSError):
 		# Issue with reading states JSON, so create one/write new one
 
-		status = {}
-
-		status['status'] = {
-			"active": 0,
-			"progress": 0
-			}
-
-		status['control'] = {
-			"start": 0,
-			"pause": 0,
-			"stop": 0,
-			"clean": "",
-			"drink_name": ""
-			}
+		status = {
+			'status': {"active": 0, "progress": 0},
+			'control': {
+				"start": 0,
+				"pause": 0,
+				"stop": 0,
+				"clean": "",
+				"drink_name": "",
+			},
+		}
 
 		WriteStatus(status)
 
@@ -51,38 +46,35 @@ def ReadSettings():
 
 	# Read all lines of settings.json into an list(array)
 	try:
-		json_data_file = open("settings.json", "r")
-		json_data_string = json_data_file.read()
-		settings = json.loads(json_data_string)
-		json_data_file.close()
-	except(IOError, OSError):
+		with open("settings.json", "r") as json_data_file:
+			json_data_string = json_data_file.read()
+			settings = json.loads(json_data_string)
+	except (IOError, OSError):
 		# Issue with reading states JSON, so create one/write new one
 
-		settings = {}
-
-		settings['inventory'] = {
-			"pump_01": "rum",
-			"pump_02": "vodka",
-			"pump_03": "whiskey",
-			"pump_04": "coke",
-			"pump_05": "oj",
-			"pump_06": "tequila",
-			"pump_07": "marg_mix",
-			"pump_08": "iced_tea"
-			}
-
-		settings['assignments'] = {
-			"pump_01": 17,
-			"pump_02": 27,
-			"pump_03": 22,
-			"pump_04": 23,
-			"pump_05": 24,
-			"pump_06": 25,
-			"pump_07": 2,
-			"pump_08": 3
-			}
-
-		settings['flowrate'] = 85
+		settings = {
+			'inventory': {
+				"pump_01": "rum",
+				"pump_02": "vodka",
+				"pump_03": "whiskey",
+				"pump_04": "coke",
+				"pump_05": "oj",
+				"pump_06": "tequila",
+				"pump_07": "marg_mix",
+				"pump_08": "iced_tea",
+			},
+			'assignments': {
+				"pump_01": 17,
+				"pump_02": 27,
+				"pump_03": 22,
+				"pump_04": 23,
+				"pump_05": 24,
+				"pump_06": 25,
+				"pump_07": 2,
+				"pump_08": 3,
+			},
+			'flowrate': 85,
+		}
 
 		WriteSettings(settings)
 
@@ -103,22 +95,13 @@ def ReadDrinkDB():
 
 	# Read all lines of settings.json into an list(array)
 	try:
-		json_data_file = open("drink_db.json", "r")
-		json_data_string = json_data_file.read()
-		drink_db = json.loads(json_data_string)
-		json_data_file.close()
-	except(IOError, OSError):
+		with open("drink_db.json", "r") as json_data_file:
+			json_data_string = json_data_file.read()
+			drink_db = json.loads(json_data_string)
+	except (IOError, OSError):
 		# Issue with reading states JSON, so create one/write new one
 
-		drink_db = {}
-
-		drink_db['drinks'] = {
-			"empty": "Empty"
-			}
-
-		drink_db['ingredients'] = {
-			"empty": "Empty",
-			}
+		drink_db = {'drinks': {"empty": "Empty"}, 'ingredients': {"empty": "Empty"}}
 
 	return(drink_db)
 
@@ -138,8 +121,7 @@ def WriteLog(event):
 	#  Event should be a string.
 	# *****************************************
 	now = str(datetime.datetime.now())
-	now = now[0:19] # Truncate the microseconds
+	now = now[:19]
 
-	logfile = open("./logs/events.log", "a")
-	logfile.write(now + ' ' + event + '\n')
-	logfile.close()
+	with open("./logs/events.log", "a") as logfile:
+		logfile.write(f'{now} {event}' + '\n')

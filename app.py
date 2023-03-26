@@ -18,8 +18,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def fixup_string(broken):
 	fixed = ''.join(e for e in broken if e.isalnum())
-	fixed = fixed.lower()
-	return(fixed)
+	return fixed.lower()
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -28,20 +27,18 @@ def allowed_file(filename):
 @app.route('/uploadfile', methods=['GET', 'POST'])
 def upload_file():
 	if request.method == 'POST':
-		# check if the post request has the file part
 		if 'file' not in request.files:
 			return redirect('/recipe')
-		else:
-			file = request.files['file']
-			# If the user does not select a file, the browser submits an
-			# empty file without a filename.
-			if file.filename == '':
-				#flash('No selected file')
-				return redirect('/recipe')
-			if file and allowed_file(file.filename):
-				filename = secure_filename(file.filename)
-				file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-				return redirect('/recipe')
+		file = request.files['file']
+		# If the user does not select a file, the browser submits an
+		# empty file without a filename.
+		if file.filename == '':
+			#flash('No selected file')
+			return redirect('/recipe')
+		if file and allowed_file(file.filename):
+			filename = secure_filename(file.filename)
+			file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+			return redirect('/recipe')
 	return redirect('/recipe')
 
 @app.route('/', methods=['POST','GET'])
@@ -60,13 +57,11 @@ def index():
 
 		# Cycle through each ingredient in the drink recipe
 		for drink_ingredients in drink_details['ingredients'].items():
-			matched_ingredient = False
-
-			# Cycle through each ingredient in the inventory and check against the recipe
-			for ingredients_available in settings['inventory'].items():
-				if (ingredients_available[1] == drink_ingredients[0]):
-					matched_ingredient = True
-			if(matched_ingredient == False):
+			matched_ingredient = any(
+				(ingredients_available[1] == drink_ingredients[0])
+				for ingredients_available in settings['inventory'].items()
+			)
+			if not matched_ingredient:
 				# If even one ingredient is missing from current inventory, then break from loop
 				break
 
@@ -74,13 +69,10 @@ def index():
 			# + All ingredients available, storing in drinklist.
 			drinklist[drink_name] = drink_db['drinks'][drink_name]
 			num_drinks += 1
-		# else:
-			# - Missing ingredients, not storing in drinklist.
+			# else:
+				# - Missing ingredients, not storing in drinklist.
 
-	if (drinklist != {}):
-		# Viable drink recipes were found and the list has been created.
-		errorcode = 0
-	else:
+	if not drinklist:
 		# No viable drink recipes were found and the list has been created as below.
 		drinklist['empty'] = {
 			"empty": {
@@ -95,6 +87,9 @@ def index():
 		num_drinks = 1
 		errorcode = 1
 
+	else:
+		# Viable drink recipes were found and the list has been created.
+		errorcode = 0
 	return render_template('index.html', drinklist=drinklist, num_drinks=num_drinks, errorcode=errorcode)
 
 @app.route('/work/<action>', methods=['POST','GET'])
@@ -137,13 +132,13 @@ def workstatus(action=None):
 def recipe(action=None):
 	drink_db = ReadDrinkDB()
 
-	UPLOAD_DIR = 'static/img/drinks'
-
 	if (request.method == 'POST'):
 		response = request.form
+		UPLOAD_DIR = 'static/img/drinks'
+
 		#print(response)
 		# Drink Recipe Edit Functions
-		if('drink_edit' in response):
+		if ('drink_edit' in response):
 			if (response['drink_edit'] == 'true'):
 				#print('drink_edit')
 				# Get Selected Drink Recipe
@@ -155,24 +150,25 @@ def recipe(action=None):
 					for file in files:
 						if file.endswith(".jpg") or file.endswith(".JPG") or file.endswith(".jpeg") or file.endswith(".JPEG") or file.endswith(".png"):
 							filename = (os.path.join(root, file)).replace('static/','')
-							
+
 							#print(filename)
 							img_list.append(filename)
 				#print(img_list)
 				num_imgs = len(img_list)
 				return render_template('recipe_drink_edit.html', drink_db=drink_db, drink_id=drink_id, img_list=img_list, num_imgs=num_imgs)
-		elif('drink_add' in response):
+		elif ('drink_add' in response):
 			if (response['drink_add'] == 'true'):
 				#print('drink_add')
 				drink_id = 'enter_new_drink_id'
 				if (drink_id in drink_db['drinks']):
 					# If there was another record with the same name, delete it
 					drink_db['drinks'].pop(drink_id)
-				drink_db['drinks'][drink_id] = {}
-				drink_db['drinks'][drink_id]['name'] = 'DEFAULT Drink Name'  
-				drink_db['drinks'][drink_id]['description'] = 'Enter Description.'
-				drink_db['drinks'][drink_id]['image'] = 'img/drinks/default.jpg'
-				drink_db['drinks'][drink_id]['ingredients'] = {}
+				drink_db['drinks'][drink_id] = {
+					'name': 'DEFAULT Drink Name',
+					'description': 'Enter Description.',
+					'image': 'img/drinks/default.jpg',
+					'ingredients': {},
+				}
 				WriteDrinkDB(drink_db)
 				# Build Image List
 				img_list = []
@@ -180,7 +176,7 @@ def recipe(action=None):
 					for file in files:
 						if file.endswith(".jpg") or file.endswith(".JPG") or file.endswith(".jpeg") or file.endswith(".JPEG") or file.endswith(".png"):
 							filename = (os.path.join(root, file)).replace('static/','')
-							
+
 							#print(filename)
 							img_list.append(filename)
 				#print(img_list)
@@ -267,7 +263,6 @@ def recipe(action=None):
 				drink_db['drinks'][drink_id]['image'] = imagefilename
 				WriteDrinkDB(drink_db)
 
-		# Ingredient Edit Functions
 		elif('ing_edit' in response):
 			if (response['ing_edit'] == 'true'):
 				#print ('Edit Selected.')
@@ -323,13 +318,13 @@ def admin(action=None):
 		#DEBUGprint('Settings Change Requested.')
 		#DEBUGprint(response)
 		for pump_number, pin_number in settings['assignments'].items():
-			index = 'inv_' + pump_number
+			index = f'inv_{pump_number}'
 			if(index in response):
 				#DEBUGprint(response[index])
 				settings['inventory'][pump_number] = response[index]
 
 		for pump_number, inv_name in settings['inventory'].items():
-			index = 'ass_' + pump_number
+			index = f'ass_{pump_number}'
 			if(index in response):
 				#DEBUGprint(response[index])
 				settings['assignments'][pump_number] = int(response[index])
@@ -341,7 +336,9 @@ def admin(action=None):
 					errorcode = 1
 					if (pin_number not in duplicated_pin):
 						duplicated_pin.append(pin_number)
-						errormessage.append('Pin ' + str(pin_number) + ' is assigned to more than one pump. ')
+						errormessage.append(
+							f'Pin {str(pin_number)} is assigned to more than one pump. '
+						)
 
 		if ('flow_rate' in response):
 			print(response['flow_rate'])
@@ -369,7 +366,6 @@ def admin(action=None):
 			status['control']['clean'] = "all"
 			status['control']['drink_name'] = 'empty'
 			WriteStatus(status)
-			return render_template('work.html', drink_name=drink_name, action="default", workmode='clean')
 		else:
 			for pump_number, pin_number in settings['assignments'].items():
 				if(pump_number in response['clean']):
@@ -382,8 +378,7 @@ def admin(action=None):
 					status['control']['clean'] = pump_number
 					status['control']['drink_name'] = 'empty'
 					WriteStatus(status)
-			return render_template('work.html', drink_name=drink_name, action="default", workmode='clean')
-
+		return render_template('work.html', drink_name=drink_name, action="default", workmode='clean')
 	if action == 'reboot':
 		event = "Admin: Reboot"
 		os.system("sleep 3 && sudo reboot &")
